@@ -11,7 +11,7 @@
 - (void)webViewDidStartLoad:(UIWebView*)webView
 {
     [[NSNotificationCenter defaultCenter] postNotification:[NSNotification notificationWithName:kCDVRemoteInjectionWebViewDidStartLoad object:webView]];
-    
+
     [self.wrappedDelegate webViewDidStartLoad: webView];
 }
 
@@ -23,14 +23,14 @@
 - (void)webViewDidFinishLoad:(UIWebView *)webView
 {
     [[NSNotificationCenter defaultCenter] postNotification:[NSNotification notificationWithName:kCDVRemoteInjectionWebViewDidFinishLoad object:webView]];
-    
+
     [self.wrappedDelegate webViewDidFinishLoad:webView];
 }
 
 - (void)webView:(UIWebView *)webView didFailLoadWithError:(NSError *)error
 {
     [self.wrappedDelegate webView:webView didFailLoadWithError:error];
-    
+
     [[NSNotificationCenter defaultCenter] postNotification:[NSNotification notificationWithName:kCDVRemoteInjectionWebViewDidFailLoadWithError object:error]];
 }
 
@@ -41,17 +41,17 @@
      Last time a request was made to load the web view.  Can be NULL.
      */
     NSDate *lastRequestTime;
-    
+
     /*
      True if the user forced a reload.
      */
     BOOL forcedReload;
-    
+
     /*
      Reference to the currently displayed alert view.  Can be NULL.
      */
     UIAlertView *alertView;
-    
+
     /*
      From CRIPageLoadPromptInterval preference.  Wait period in seconds before prompting the
      end user about a slow request.  Default is 10 which feels safe.  Off by default
@@ -65,45 +65,45 @@
     UIWebView *webView;
 #ifdef __CORDOVA_4_0_0
     UIView *view = [[self webViewEngine] engineWebView];
-    
+
     if ([view isKindOfClass:[UIWebView class]]) {
         webView = (UIWebView *) view;
     }
 #else
     webView = [self webView];
 #endif
-    
+
     return webView;
 }
 - (void) pluginInitialize
 {
     [super pluginInitialize];
-    
+
     // Hook to inject cordova into the page.
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(webViewDidStartLoad:)
                                                  name:kCDVRemoteInjectionWebViewDidStartLoad
                                                object:nil];
-    
+
     // Hook to inject cordova into the page.
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(webViewDidFinishLoad:)
                                                  name:kCDVRemoteInjectionWebViewDidFinishLoad
                                                object:nil];
-    
+
     // Hook to respond to page load failures.
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(didWebViewFailLoadWithError:)
                                                  name:kCDVRemoteInjectionWebViewDidFailLoadWithError
                                                object:nil];
-    
+
     UIWebView *webView = [self findWebView];
-    
+
     // Wrap the current delegate with our own so we can hook into web view events.
     notificationDelegate = [[CDVRemoteInjectionWebViewNotificationDelegate alloc] init];
     notificationDelegate.wrappedDelegate = [webView delegate];
     [webView setDelegate:notificationDelegate];
-    
+
     // Read configuration to read in files to inject first.
     NSString *value = [self settingForKey:@"CRIInjectFirstFiles"];
     if (value != NULL) {
@@ -112,12 +112,12 @@
         for (id path in [value componentsSeparatedByString:@","]) {
             [paths addObject: [self trim: path]];
         }
-        
+
         [self setPreInjectionJSFiles: paths];
     } else {
         [self setPreInjectionJSFiles: [[NSArray alloc] init]];
     }
-    
+
     value = [self settingForKey:@"CRIPageLoadPromptInterval"];
     if (value != NULL) {
         promptInterval = [value integerValue];
@@ -158,18 +158,18 @@
 - (void)alertView:(UIAlertView *)view didDismissWithButtonIndex:(NSInteger)buttonIndex
 {
     alertView = NULL;
-    
+
     if(buttonIndex == 1)
     {
         UIWebView *webView = [self findWebView];
-        
+
         forcedReload = YES; // Allows us to keep track of the fact that an error may be raised
         // by the webView as a result of attempting to load a page before the previous request finished.
-        
+
         [webView stopLoading];
         [webView reload];
     }
-    
+
     if (buttonIndex == 0 || buttonIndex == 1) {
         // In either the case that the user says to wait or retry we always want to reset the timer so that they're
         // prompted if the request has not completed.  This provides the user a way to get out of a blank screen
@@ -184,7 +184,7 @@
 -(void) loadProgressCheck:(id)requestTime
 {
     UIWebView* webView = [self findWebView];
-    
+
     if (lastRequestTime != NULL && webView.loading && [(NSDate *)requestTime isEqualToDate:lastRequestTime]) {
         [self displayRetryPromptWithMessage:@"The server is taking longer than expected to respond." withCancelText:@"Wait"];
     }
@@ -198,7 +198,7 @@
     if (promptInterval > 0) {
         [self cancelRequestTimer];
         lastRequestTime = [NSDate date];
-    
+
         // Schedule progress check.
         [self performSelector:@selector(loadProgressCheck:) withObject:lastRequestTime afterDelay:promptInterval];
     }
@@ -214,7 +214,7 @@
         [alertView dismissWithClickedButtonIndex:-1 animated:YES];
         alertView = NULL;
     }
-    
+
     if (lastRequestTime != NULL) {
         [NSObject cancelPreviousPerformRequestsWithTarget:(id)self selector:@selector(loadProgressCheck:) object:lastRequestTime];
     }
@@ -233,10 +233,10 @@
 - (void) webViewDidFinishLoad:(NSNotification*)notification
 {
     [self cancelRequestTimer];
-    
+
     UIWebView *webView = notification.object;
     NSString *scheme = webView.request.URL.scheme;
-    
+
     if ([scheme isEqualToString:@"http"] || [scheme isEqualToString:@"https"]) {
         [self injectCordova: webView];
     } else {
@@ -247,14 +247,14 @@
 - (void) injectCordova:(UIWebView*)webView
 {
     NSArray *jsPaths = [self jsPathsToInject];
-    
+
     NSString *path;
     for (path in jsPaths) {
         NSString *jsFilePath = [[NSBundle mainBundle] pathForResource:path ofType:nil];
-        
+
         NSURL *jsURL = [NSURL fileURLWithPath:jsFilePath];
         NSString *js = [NSString stringWithContentsOfFile:jsURL.path encoding:NSUTF8StringEncoding error:nil];
-        
+
         NSLog(@"Injecting JS file into remote site: %@", jsURL.path);
         [webView stringByEvaluatingJavaScriptFromString:js];
     }
@@ -264,20 +264,20 @@
 {
     // Array of paths that represent JS files to inject into the WebView.  Order is important.
     NSMutableArray *jsPaths = [NSMutableArray new];
-    
+
     // Pre injection files.
     for (id path in [self preInjectionJSFiles]) {
         [jsPaths addObject: path];
     }
-    
+
     [jsPaths addObject:@"www/cordova.js"];
-    
+
     // We load the plugin code manually rather than allow cordova to load them (via
     // cordova_plugins.js).  The reason for this is the WebView will attempt to load the
     // file in the origin of the page (e.g. https://example.com/plugins/plugin/plugin.js).
     // By loading them first cordova will skip the loading process altogether.
     NSDirectoryEnumerator *directoryEnumerator = [[NSFileManager defaultManager] enumeratorAtPath:[[NSBundle mainBundle] pathForResource:@"www/plugins" ofType:nil]];
-    
+
     NSString *path;
     while (path = [directoryEnumerator nextObject])
     {
@@ -287,7 +287,7 @@
     }
     // Initialize cordova plugin registry.
     [jsPaths addObject:@"www/cordova_plugins.js"];
-    
+
     return jsPaths;
 }
 
@@ -295,7 +295,7 @@
 - (void)didWebViewFailLoadWithError:(NSNotification*)notification
 {
     if (forcedReload == NO) {
-        [self displayRetryPromptWithMessage:@"Unable to contact the site." withCancelText:@"Close"];
+        // [self displayRetryPromptWithMessage:@"Unable to contact the site." withCancelText:@"Close"];
     }
 }
 
