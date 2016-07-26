@@ -43,7 +43,9 @@ public class RemoteInjectionPlugin extends CordovaPlugin {
 
         final Activity activity = super.cordova.getActivity();
         final CordovaWebViewEngine engine = super.webView.getEngine();
-        lifecycle = new RequestLifecycle(activity, engine, promptInterval);
+        if(promptInterval != 0){
+            lifecycle = new RequestLifecycle(activity, engine, promptInterval);
+        }
     }
 
     private void onMessageTypeFailure(String messageId, Object data) {
@@ -53,8 +55,9 @@ public class RemoteInjectionPlugin extends CordovaPlugin {
     @Override
     public void onReset() {
         super.onReset();
-
-        lifecycle.requestStopped();
+        if(promptInterval != 0){
+            lifecycle.requestStopped();
+        }
     }
 
     @Override
@@ -70,7 +73,9 @@ public class RemoteInjectionPlugin extends CordovaPlugin {
 
                 try {
                     if (isRemote(json.getString("url"))) {
-                        lifecycle.requestStopped();
+                        if(promptInterval != 0){
+                            lifecycle.requestStopped();
+                        }
                     }
                 } catch (JSONException e) {
                     LOG.e(TAG, "Unexpected JSON in onReceiveError", e);
@@ -83,7 +88,9 @@ public class RemoteInjectionPlugin extends CordovaPlugin {
                 String url = (String) data;
                 if (isRemote(url)) {
                     injectCordova();
-                    lifecycle.requestStopped();
+                    if(promptInterval != 0){
+                        lifecycle.requestStopped();
+                    }
                 }
             } else {
                 onMessageTypeFailure(id, data);
@@ -93,7 +100,9 @@ public class RemoteInjectionPlugin extends CordovaPlugin {
                 String url = (String) data;
 
                 if (isRemote(url)) {
-                    lifecycle.requestStarted(url);
+                    if(promptInterval != 0){
+                        lifecycle.requestStarted(url);
+                    }
                 }
             } else {
                 onMessageTypeFailure(id, data);
